@@ -4,10 +4,11 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import Literal, Mapping, Optional, Sequence, TypeAlias
 
+from pydantic import BaseModel
 from typing_extensions import Any, AsyncGenerator, Required, TypedDict, Union, deprecated
 
 from .. import CancellationToken
-from .._component_config import ComponentLoader
+from .._component_config import ComponentBase
 from ..tools import Tool, ToolSchema
 from ._types import CreateResult, LLMMessage, RequestUsage
 
@@ -19,11 +20,13 @@ class ModelFamily:
 
     GPT_4O = "gpt-4o"
     O1 = "o1"
+    O3 = "o3"
     GPT_4 = "gpt-4"
     GPT_35 = "gpt-35"
+    R1 = "r1"
     UNKNOWN = "unknown"
 
-    ANY: TypeAlias = Literal["gpt-4o", "o1", "gpt-4", "gpt-35", "unknown"]
+    ANY: TypeAlias = Literal["gpt-4o", "o1", "o3", "gpt-4", "gpt-35", "r1", "unknown"]
 
     def __new__(cls, *args: Any, **kwargs: Any) -> ModelFamily:
         raise TypeError(f"{cls.__name__} is a namespace class and cannot be instantiated.")
@@ -47,7 +50,7 @@ class ModelInfo(TypedDict, total=False):
     """Model family should be one of the constants from :py:class:`ModelFamily` or a string representing an unknown model family."""
 
 
-class ChatCompletionClient(ABC, ComponentLoader):
+class ChatCompletionClient(ComponentBase[BaseModel], ABC):
     # Caching has to be handled internally as they can depend on the create args that were stored in the constructor
     @abstractmethod
     async def create(
