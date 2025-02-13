@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from typing_extensions import NotRequired
 
 from .. import CancellationToken
+from .._component_config import ComponentBase
 from .._function_utils import normalize_annotated_type
 
 T = TypeVar("T", bound=BaseModel, contravariant=True)
@@ -17,12 +18,14 @@ class ParametersSchema(TypedDict):
     type: str
     properties: Dict[str, Any]
     required: NotRequired[Sequence[str]]
+    additionalProperties: NotRequired[bool]
 
 
 class ToolSchema(TypedDict):
     parameters: NotRequired[ParametersSchema]
     name: str
     description: NotRequired[str]
+    strict: NotRequired[bool]
 
 
 @runtime_checkable
@@ -56,19 +59,23 @@ ReturnT = TypeVar("ReturnT", bound=BaseModel, covariant=True)
 StateT = TypeVar("StateT", bound=BaseModel)
 
 
-class BaseTool(ABC, Tool, Generic[ArgsT, ReturnT]):
+class BaseTool(ABC, Tool, Generic[ArgsT, ReturnT], ComponentBase[BaseModel]):
+    component_type = "tool"
+
     def __init__(
         self,
         args_type: Type[ArgsT],
         return_type: Type[ReturnT],
         name: str,
         description: str,
+        strict: bool = False,
     ) -> None:
         self._args_type = args_type
         # Normalize Annotated to the base type.
         self._return_type = normalize_annotated_type(return_type)
         self._name = name
         self._description = description
+        self._strict = strict
 
     @property
     def schema(self) -> ToolSchema:
@@ -78,18 +85,32 @@ class BaseTool(ABC, Tool, Generic[ArgsT, ReturnT]):
             model_schema = cast(Dict[str, Any], jsonref.replace_refs(obj=model_schema, proxies=False))  # type: ignore
             del model_schema["$defs"]
 
+        parameters = ParametersSchema(
+            type="object",
+            properties=model_schema["properties"],
+            required=model_schema.get("required", []),
+            additionalProperties=model_schema.get("additionalProperties", False),
+        )
+
+        # If strict is enabled, the tool schema should list all properties as required.
+        assert "required" in parameters
+        if self._strict and set(parameters["required"]) != set(parameters["properties"].keys()):
+            raise ValueError(
+                "Strict mode is enabled, but not all input arguments are marked as required. Default arguments are not allowed in strict mode."
+            )
+
+        assert "additionalProperties" in parameters
+        if self._strict and parameters["additionalProperties"]:
+            raise ValueError(
+                "Strict mode is enabled but additional argument is also enabled. This is not allowed in strict mode."
+            )
+
         tool_schema = ToolSchema(
             name=self._name,
             description=self._description,
-            parameters=ParametersSchema(
-                type="object",
-                properties=model_schema["properties"],
-            ),
+            parameters=parameters,
+            strict=self._strict,
         )
-        if "required" in model_schema:
-            assert "parameters" in tool_schema
-            tool_schema["parameters"]["required"] = model_schema["required"]
-
         return tool_schema
 
     @property
@@ -132,7 +153,7 @@ class BaseTool(ABC, Tool, Generic[ArgsT, ReturnT]):
         pass
 
 
-class BaseToolWithState(BaseTool[ArgsT, ReturnT], ABC, Generic[ArgsT, ReturnT, StateT]):
+class BaseToolWithState(BaseTool[ArgsT, ReturnT], ABC, Generic[ArgsT, ReturnT, StateT], ComponentBase[BaseModel]):
     def __init__(
         self,
         args_type: Type[ArgsT],
@@ -143,6 +164,8 @@ class BaseToolWithState(BaseTool[ArgsT, ReturnT], ABC, Generic[ArgsT, ReturnT, S
     ) -> None:
         super().__init__(args_type, return_type, name, description)
         self._state_type = state_type
+
+    component_type = "tool"
 
     @abstractmethod
     def save_state(self) -> StateT: ...

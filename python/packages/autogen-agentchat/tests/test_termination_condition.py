@@ -12,7 +12,7 @@ from autogen_agentchat.conditions import (
     TimeoutTermination,
     TokenUsageTermination,
 )
-from autogen_agentchat.messages import HandoffMessage, StopMessage, TextMessage
+from autogen_agentchat.messages import HandoffMessage, StopMessage, TextMessage, UserInputRequestedEvent
 from autogen_core.models import RequestUsage
 
 
@@ -74,6 +74,18 @@ async def test_max_message_termination() -> None:
         is not None
     )
 
+    termination = MaxMessageTermination(2, include_agent_event=True)
+    assert await termination([]) is None
+    await termination.reset()
+    assert await termination([TextMessage(content="Hello", source="user")]) is None
+    await termination.reset()
+    assert (
+        await termination(
+            [TextMessage(content="Hello", source="user"), UserInputRequestedEvent(request_id="1", source="agent")]
+        )
+        is not None
+    )
+
 
 @pytest.mark.asyncio
 async def test_mention_termination() -> None:
@@ -86,6 +98,13 @@ async def test_mention_termination() -> None:
     await termination.reset()
     assert (
         await termination([TextMessage(content="Hello", source="user"), TextMessage(content="stop", source="user")])
+        is not None
+    )
+    termination = TextMentionTermination("stop", sources=["agent"])
+    assert await termination([TextMessage(content="stop", source="user")]) is None
+    await termination.reset()
+    assert (
+        await termination([TextMessage(content="stop", source="user"), TextMessage(content="stop", source="agent")])
         is not None
     )
 
