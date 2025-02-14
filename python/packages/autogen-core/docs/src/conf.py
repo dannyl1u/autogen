@@ -131,6 +131,7 @@ html_theme_options = {
     },
     "show_version_warning_banner": True,
     "external_links": [
+      {"name": ".NET", "url": "https://microsoft.github.io/autogen/dotnet/"},
       {"name": "0.2 Docs", "url": "https://microsoft.github.io/autogen/0.2/"},
     ]
 }
@@ -158,6 +159,7 @@ autodoc_default_options = {
 }
 
 autodoc_pydantic_model_show_config_summary = False
+autodoc_pydantic_model_show_json_error_strategy = "coerce"
 python_use_unqualified_type_names = True
 autodoc_preserve_defaults = True
 
@@ -174,6 +176,10 @@ nb_mime_priority_overrides = [
 rediraffe_redirects = {
     "user-guide/agentchat-user-guide/tutorial/selector-group-chat.ipynb": "user-guide/agentchat-user-guide/selector-group-chat.ipynb",
     "user-guide/agentchat-user-guide/tutorial/swarm.ipynb": "user-guide/agentchat-user-guide/swarm.ipynb",
+    "user-guide/core-user-guide/framework/command-line-code-executors.ipynb": "user-guide/core-user-guide/components/command-line-code-executors.ipynb",
+    "user-guide/core-user-guide/framework/model-clients.ipynb": "user-guide/core-user-guide/components/model-clients.ipynb",
+    "user-guide/core-user-guide/framework/tools.ipynb": "user-guide/core-user-guide/components/tools.ipynb",
+    "user-guide/agentchat-user-guide/tutorial/custom-agents.ipynb": "user-guide/agentchat-user-guide/custom-agents.ipynb",
 }
 
 

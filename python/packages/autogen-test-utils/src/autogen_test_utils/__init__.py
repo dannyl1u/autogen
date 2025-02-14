@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+from asyncio import Event
 from dataclasses import dataclass
 from typing import Any
 
 from autogen_core import (
     BaseAgent,
     Component,
+    ComponentBase,
+    ComponentModel,
     DefaultTopicId,
     MessageContext,
     RoutedAgent,
     default_subscription,
     message_handler,
 )
-from autogen_core._component_config import ComponentModel
 from pydantic import BaseModel
 
 
@@ -35,6 +37,7 @@ class LoopbackAgent(RoutedAgent):
         super().__init__("A loop back agent.")
         self.num_calls = 0
         self.received_messages: list[Any] = []
+        self.event = Event()
 
     @message_handler
     async def on_new_message(
@@ -42,6 +45,7 @@ class LoopbackAgent(RoutedAgent):
     ) -> MessageType | ContentMessage:
         self.num_calls += 1
         self.received_messages.append(message)
+        self.event.set()
         return message
 
 
@@ -76,7 +80,7 @@ class MyInnerConfig(BaseModel):
     inner_message: str
 
 
-class MyInnerComponent(Component[MyInnerConfig]):
+class MyInnerComponent(ComponentBase[MyInnerConfig], Component[MyInnerConfig]):
     component_config_schema = MyInnerConfig
     component_type = "custom"
 
@@ -96,7 +100,7 @@ class MyOuterConfig(BaseModel):
     inner_class: ComponentModel
 
 
-class MyOuterComponent(Component[MyOuterConfig]):
+class MyOuterComponent(ComponentBase[MyOuterConfig], Component[MyOuterConfig]):
     component_config_schema = MyOuterConfig
     component_type = "custom"
 
